@@ -1,3 +1,10 @@
+Project Title: Smart Alarm
+Module: Programming Internet of Things
+University: Millat Umidi University (MU)
+Lecturer: Lazizbek Yusupov
+Semester: Fall 2025
+
+
 # Smart Alarm - ESP32-CAM + Telegram
 
 A smart alarm clock that requires you to scan a QR code to prove you're awake!

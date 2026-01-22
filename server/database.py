@@ -85,6 +85,7 @@ class Database:
                 stopped_at TEXT,
                 wake_time_seconds INTEGER,
                 notification_sent INTEGER DEFAULT 0,
+                qr_sent INTEGER DEFAULT 0,
                 FOREIGN KEY (user_id) REFERENCES users(id)
             )
         """)
@@ -386,6 +387,40 @@ class Database:
     def mark_notification_sent(self, alarm_id: int):
         """Mark an alarm as notified."""
         self.update_alarm_state(alarm_id, AlarmState.COMPLETED, notification_sent=True)
+
+    def get_ringing_alarms_needing_qr(self) -> list[Alarm]:
+        """Get ringing alarms that haven't had QR code sent yet."""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute("""
+                SELECT * FROM alarms 
+                WHERE state = ? AND qr_sent = 0
+            """, (AlarmState.RINGING.value,))
+            rows = cursor.fetchall()
+        except sqlite3.OperationalError:
+            # Column might not exist yet
+            rows = []
+        
+        conn.close()
+        
+        return [self._row_to_alarm(row) for row in rows]
+
+    def mark_qr_sent(self, alarm_id: int):
+        """Mark that QR code was sent for this alarm."""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute("""
+                UPDATE alarms SET qr_sent = 1 WHERE id = ?
+            """, (alarm_id,))
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass  # Column might not exist
+        
+        conn.close()
 
 
 # Singleton instance

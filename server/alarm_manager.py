@@ -83,7 +83,31 @@ class AlarmManager:
         # Check for unnotified completed alarms (for separate process mode)
         # Only if we have a bot to send messages
         if self._telegram_bot:
+            await self._check_ringing_qr_notifications()
             await self._check_notifications()
+
+    async def _check_ringing_qr_notifications(self):
+        """Check for ringing alarms that need QR codes sent (for separate bot process)."""
+        needing_qr = db.get_ringing_alarms_needing_qr()
+        
+        for alarm in needing_qr:
+            if not alarm.user_id or not alarm.qr_token:
+                continue
+            
+            print(f"[BOT] Sending QR code for ringing alarm {alarm.id}")
+            user = db.get_user_by_id(alarm.user_id)
+            
+            if user:
+                try:
+                    # Generate QR image from the token that was saved by the server
+                    qr_image = generate_qr_image(alarm.qr_token)
+                    await self._telegram_bot.send_alarm_qr(user, qr_image)
+                    db.mark_qr_sent(alarm.id)
+                    print(f"[BOT] ✅ QR code sent for alarm {alarm.id}")
+                except Exception as e:
+                    print(f"[BOT] ❌ Failed to send QR: {e}")
+                    # Mark as sent to avoid spam loop
+                    db.mark_qr_sent(alarm.id)
 
     async def _check_notifications(self):
         """Check for completed alarms that haven't been notified."""
